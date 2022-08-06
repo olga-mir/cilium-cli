@@ -150,6 +150,7 @@ func (p *Parameters) validateParams() error {
 
 func NewK8sHubble(ctx context.Context, client k8sHubbleImplementation, p Parameters) (*K8sHubble, error) {
 	cm := certs.NewCertManager(client, certs.Parameters{Namespace: p.Namespace})
+	fmt.Print("in NewK8sHubble\n")
 	helmState, err := client.GetHelmState(ctx, p.Namespace, p.HelmValuesSecretName)
 	if err != nil {
 		return nil, err
@@ -273,16 +274,17 @@ func (k *K8sHubble) disableHubble(ctx context.Context) error {
 }
 
 func (k *K8sHubble) Disable(ctx context.Context) error {
-	helmState, err := k.client.GetHelmState(ctx, k.params.Namespace, k.params.HelmValuesSecretName)
-	if err != nil {
-		return err
-	}
+	fmt.Print("in Disable\n")
+	// helmState, err := k.client.GetHelmState(ctx, k.params.Namespace, k.params.HelmValuesSecretName)
+	// if err != nil {
+	// 	return err
+	// }
 
 	// Generate the manifests has if hubble was being enabled so that we can
 	// retrieve all UI and Relay's resource names.
 	k.params.UI = true
 	k.params.Relay = true
-	err = k.generateManifestsEnable(ctx, false, helmState.Values)
+	err := k.generateManifestsEnable(ctx, false, k.helmState.Values)
 	if err != nil {
 		return err
 	}
@@ -307,7 +309,7 @@ func (k *K8sHubble) Disable(ctx context.Context) error {
 
 	// Now that we have delete all UI and Relay's resource names then we can
 	// generate the manifests with UI and Relay disabled.
-	err = k.generateManifestsDisable(ctx, helmState.Values)
+	err = k.generateManifestsDisable(ctx, k.helmState.Values)
 	if err != nil {
 		return err
 	}
@@ -316,12 +318,16 @@ func (k *K8sHubble) Disable(ctx context.Context) error {
 		return err
 	}
 
-	k.Log("ℹ️  Storing helm values file in %s/%s Secret", k.params.Namespace, k.params.HelmValuesSecretName)
+	// If helm values secret is not present we should not write one to the cluster now
+	// because the whole config is not known at this stage.
+	if k.helmState.Secret != nil {
+		k.Log("ℹ️  Storing helm values file in %s/%s Secret", k.params.Namespace, k.params.HelmValuesSecretName)
 
-	helmState.Secret.Data[defaults.HelmValuesSecretKeyName] = []byte(k.helmYAMLValues)
-	if _, err := k.client.UpdateSecret(ctx, k.params.Namespace, helmState.Secret, metav1.UpdateOptions{}); err != nil {
-		k.Log("❌ Unable to store helm values file %s/%s Secret", k.params.Namespace, k.params.HelmValuesSecretName)
-		return err
+		k.helmState.Secret.Data[defaults.HelmValuesSecretKeyName] = []byte(k.helmYAMLValues)
+		if _, err := k.client.UpdateSecret(ctx, k.params.Namespace, k.helmState.Secret, metav1.UpdateOptions{}); err != nil {
+			k.Log("❌ Unable to store helm values file %s/%s Secret", k.params.Namespace, k.params.HelmValuesSecretName)
+			return err
+		}
 	}
 
 	k.Log("✅ Hubble was successfully disabled.")
@@ -513,12 +519,13 @@ func (k *K8sHubble) Enable(ctx context.Context) error {
 		}
 	}
 
-	helmState, err := k.client.GetHelmState(ctx, k.params.Namespace, k.params.HelmValuesSecretName)
-	if err != nil {
-		return err
-	}
+	fmt.Print("in Enable %v\n", k.helmState)
+	//helmState, err := k.client.GetHelmState(ctx, k.params.Namespace, k.params.HelmValuesSecretName)
+	//if err != nil {
+	//	return err
+	//}
 
-	err = k.generateManifestsEnable(ctx, true, helmState.Values)
+	err = k.generateManifestsEnable(ctx, true, k.helmState.Values)
 	if err != nil {
 		return err
 	}
@@ -601,12 +608,16 @@ func (k *K8sHubble) Enable(ctx context.Context) error {
 		}
 	}
 
-	k.Log("ℹ️  Storing helm values file in %s/%s Secret", k.params.Namespace, k.params.HelmValuesSecretName)
+	// If helm values secret is not present we should not write one to the cluster now
+	// because the whole config is not known at this stage.
+	if k.helmState.Secret != nil {
+		k.Log("ℹ️  Storing helm values file in %s/%s Secret", k.params.Namespace, k.params.HelmValuesSecretName)
 
-	helmState.Secret.Data[defaults.HelmValuesSecretKeyName] = []byte(k.helmYAMLValues)
-	if _, err := k.client.UpdateSecret(ctx, k.params.Namespace, helmState.Secret, metav1.UpdateOptions{}); err != nil {
-		k.Log("❌ Unable to store helm values file %s/%s Secret", k.params.Namespace, k.params.HelmValuesSecretName)
-		return err
+		k.helmState.Secret.Data[defaults.HelmValuesSecretKeyName] = []byte(k.helmYAMLValues)
+		if _, err := k.client.UpdateSecret(ctx, k.params.Namespace, k.helmState.Secret, metav1.UpdateOptions{}); err != nil {
+			k.Log("❌ Unable to store helm values file %s/%s Secret", k.params.Namespace, k.params.HelmValuesSecretName)
+			return err
+		}
 	}
 
 	k.Log("✅ Hubble was successfully enabled!")

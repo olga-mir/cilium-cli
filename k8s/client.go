@@ -853,7 +853,7 @@ func (c *Client) DeleteIngressClass(ctx context.Context, name string, opts metav
 func (c *Client) GetHelmState(ctx context.Context, namespace string, secretName string) (*helm.State, error) {
 	helmSecret, err := c.GetSecret(ctx, namespace, secretName, metav1.GetOptions{})
 	if err != nil {
-		fmt.Printf("unable to retrieve helm values secret %s/%s: %s", namespace, secretName, err)
+		fmt.Printf("unable to retrieve helm values secret %s/%s: %s\n", namespace, secretName, err)
 		version, err := c.GetRunningCiliumVersion(context.Background(), namespace)
 		if version == "" || err != nil {
 			return nil, fmt.Errorf("unable to obtain cilium version, no cilium pods found in namespace %q\n", namespace)
@@ -864,7 +864,7 @@ func (c *Client) GetHelmState(ctx context.Context, namespace string, secretName 
 		}
 		fmt.Printf("assuming that cilium was not installed with helm, constructing a default helm state\n")
 		defaultHelmState := &helm.State{
-			Secret:  &corev1.Secret{},
+			Secret:  nil,
 			Version: semVer,
 			Values:  chartutil.Values{},
 		}

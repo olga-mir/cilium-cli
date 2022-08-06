@@ -150,7 +150,6 @@ func (p *Parameters) validateParams() error {
 
 func NewK8sHubble(ctx context.Context, client k8sHubbleImplementation, p Parameters) (*K8sHubble, error) {
 	cm := certs.NewCertManager(client, certs.Parameters{Namespace: p.Namespace})
-	fmt.Print("in NewK8sHubble\n")
 	helmState, err := client.GetHelmState(ctx, p.Namespace, p.HelmValuesSecretName)
 	if err != nil {
 		return nil, err
@@ -274,12 +273,6 @@ func (k *K8sHubble) disableHubble(ctx context.Context) error {
 }
 
 func (k *K8sHubble) Disable(ctx context.Context) error {
-	fmt.Print("in Disable\n")
-	// helmState, err := k.client.GetHelmState(ctx, k.params.Namespace, k.params.HelmValuesSecretName)
-	// if err != nil {
-	// 	return err
-	// }
-
 	// Generate the manifests has if hubble was being enabled so that we can
 	// retrieve all UI and Relay's resource names.
 	k.params.UI = true
@@ -518,12 +511,6 @@ func (k *K8sHubble) Enable(ctx context.Context) error {
 			k.Log("🔑 Found CA in secret %s", caSecret.Name)
 		}
 	}
-
-	fmt.Print("in Enable %v\n", k.helmState)
-	//helmState, err := k.client.GetHelmState(ctx, k.params.Namespace, k.params.HelmValuesSecretName)
-	//if err != nil {
-	//	return err
-	//}
 
 	err = k.generateManifestsEnable(ctx, true, k.helmState.Values)
 	if err != nil {

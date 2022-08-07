@@ -57,6 +57,7 @@ func filterManifests(manifest string) map[string]string {
 		manifestsKeys = append(manifestsKeys, k)
 	}
 	sort.Sort(releaseutil.BySplitManifestsOrder(manifestsKeys))
+	fmt.Printf("manifests: %v", manifestsKeys)
 
 	manifestNameRegex := regexp.MustCompile("# Source: [^/]+/(.+)")
 

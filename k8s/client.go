@@ -848,25 +848,34 @@ func (c *Client) DeleteIngressClass(ctx context.Context, name string, opts metav
 	return c.Clientset.NetworkingV1().IngressClasses().Delete(ctx, name, opts)
 }
 
+func (c *Client) generateDefaultHelmState(ctx context.Context, namespace string) (*helm.State, error) {
+	version, err := c.GetRunningCiliumVersion(context.Background(), namespace)
+	if version == "" || err != nil {
+		return nil, fmt.Errorf("unable to obtain cilium version, no cilium pods found in namespace %q\n", namespace)
+	}
+	semVer, err := utils.ParseCiliumVersion(version)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse cilium version %s: %w\n", version, err)
+	}
+	fmt.Printf("ℹ️  Auto-detected cilium version %s\n", version)
+	return &helm.State{
+		Secret:  nil,
+		Version: semVer,
+		Values:  chartutil.Values{},
+	}, nil
+}
+
 // GetHelmState is a wrapper function that gets cilium-cli-helm-values secret from Kubernetes API
 // server, and converts its fields from byte array to their corresponding data types.
+// If secret is not found, e.g. when cilium is installed not with cilium-cli then a default
+// helmState will be generated.
 func (c *Client) GetHelmState(ctx context.Context, namespace string, secretName string) (*helm.State, error) {
 	helmSecret, err := c.GetSecret(ctx, namespace, secretName, metav1.GetOptions{})
 	if err != nil {
 		fmt.Printf("⚠️  Unable to retrieve helm values secret %s/%s: %s\n", namespace, secretName, err)
-		version, err := c.GetRunningCiliumVersion(context.Background(), namespace)
-		if version == "" || err != nil {
-			return nil, fmt.Errorf("unable to obtain cilium version, no cilium pods found in namespace %q\n", namespace)
-		}
-		semVer, err := utils.ParseCiliumVersion(version)
+		defaultHelmState, err := c.generateDefaultHelmState(ctx, namespace)
 		if err != nil {
-			return nil, fmt.Errorf("unable to parse cilium version %s: %w\n", version, err)
-		}
-		fmt.Printf("ℹ️  Auto-detected cilium version %s\n", version)
-		defaultHelmState := &helm.State{
-			Secret:  nil,
-			Version: semVer,
-			Values:  chartutil.Values{},
+			return nil, err
 		}
 		return defaultHelmState, nil
 	}
